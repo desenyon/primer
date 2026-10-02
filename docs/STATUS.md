@@ -86,9 +86,16 @@ requires a valid, unique checksum and matching embedded version before replacing
 the destination. Automated tests cover successful installation, corrupted or
 ambiguous checksums, unsupported platforms and mismatched binary versions.
 
-CI tests native macOS and Linux with the race detector. Tag publishing waits for
-both platforms to pass. Release archives include the MIT license. Git history is
+The prepared CI workflow tests native macOS and Linux with the race detector.
+Tag publishing waits for both platforms to pass. The remote workflow has not run
+yet because public publication awaits explicit approval. Release archives include the MIT license. Git history is
 created with one file per commit, as requested.
 
 The codebase-memory MCP architecture/index requests did not return usable data
 in this session. Index the actual implementation before future graph discovery.
+
+The locally built macOS ARM64 release was installed on PATH. Bare `primer`
+completed review → launch → dashboard → quit against the real Next.js fixture.
+HTTP returned 200, ready logs appeared, quit returned 0, and the owned process
+group and listening port disappeared. Results are in `distribution-proof.json`.
+The GitHub download/install path remains unverified until publication.
