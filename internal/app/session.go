@@ -47,7 +47,9 @@ func (s *Session) Inspect(ctx context.Context) (doctor.Report, error) {
 
 // Start is called only after the user approves the preview. Re-inspection
 // rejects changes to package scripts after review rather than running new code.
-func (s *Session) Start(ctx context.Context) error {
+func (s *Session) Start(ctx context.Context) error { return s.Run(ctx, "dev") }
+
+func (s *Session) Run(ctx context.Context, name string) error {
 	s.mu.Lock()
 	reviewed := s.report
 	supervisor := s.supervisor
@@ -60,16 +62,17 @@ func (s *Session) Start(ctx context.Context) error {
 		return err
 	}
 	if fresh.Project.Fingerprint != reviewed.Project.Fingerprint {
-		return errors.New("package.json changed after review; quit and inspect again")
+		return errors.New("Repository launch evidence changed after review; quit and inspect again")
 	}
+	fresh = fresh.ForCommand(name)
 	if fresh.Blocked() {
 		return errors.New("launch blocked by local checks; resolve diagnostics and inspect again")
 	}
-	dev, ok := reviewed.Project.DevCommand()
+	dev, ok := reviewed.Project.Command(name)
 	if !ok {
-		return errors.New("no dev command")
+		return errors.New("unknown project command: " + name)
 	}
-	freshDev, ok := fresh.Project.DevCommand()
+	freshDev, ok := fresh.Project.Command(name)
 	if !ok || !slices.Equal(freshDev.Args, dev.Args) || fresh.Project.Root != reviewed.Project.Root {
 		return errors.New("launch command changed after review; quit and inspect again")
 	}
@@ -77,11 +80,13 @@ func (s *Session) Start(ctx context.Context) error {
 	return supervisor.Start(ctx, reviewed.Project.Root, dev.Args)
 }
 
-func (s *Session) Restart(ctx context.Context) error {
+func (s *Session) Restart(ctx context.Context) error { return s.RestartCommand(ctx, "dev") }
+
+func (s *Session) RestartCommand(ctx context.Context, name string) error {
 	if err := s.Stop(); err != nil {
 		return err
 	}
-	return s.Start(ctx)
+	return s.Run(ctx, name)
 }
 
 func (s *Session) Stop() error {
