@@ -1,102 +1,79 @@
-# Primer implementation checkpoint
+# Primer implementation checkpoint — alpha.2
 
-The supplied product direction is preserved as operating constraints in
-`AGENTS.md`. This is the first vertical milestone, not the full MVP.
+Primer now runs a useful cross-language slice of the product loop. It remains an
+alpha, rather than the full universal-environment MVP in `AGENTS.md`.
 
 ## Implemented
 
-- Read-only, bounded Node detection: project location, Next.js dependency,
-  package manager declarations/lockfiles, dev scripts, numeric Node pins,
-  environment templates and common Next.js port declarations.
-- Structured model with evidence, heuristic confidence and manifest fingerprint.
-- Doctor: installed runtime/manager versions, conflicting declarations,
-  missing dependencies, missing/empty template variables and local bind checks.
-- Command preview including predev/dev/postdev. Long previews wrap and scroll;
-  approval waits until the end is visible. Execution rechecks the manifest and
-  local prerequisites after review.
-- macOS/Linux process groups, stdout/stderr capture, restart, cancellation,
-  graceful stop followed by bounded escalation, and descendant cleanup when
-  the launcher exits. Raw output remains in bounded private session memory;
-  views strip terminal controls and redact known private environment values.
-- Immediate scan, blue-field review, dashboard, diagnostics/evidence, logs with
-  filtering/scroll/pause/follow, help and session command palette.
-- Plain/JSON doctor and env; headless start with explicit `--yes`; useful default
-  inspection in CI/non-TTY mode. No implicit repository execution in CI.
-- Canonical GitHub module path, embedded release version, shell installer,
-  checksummed macOS/Linux ARM64/AMD64 archives, editorial README artwork,
-  native-platform CI and tag-triggered alpha release publishing.
+- Bounded, read-only detection of Node/TypeScript, Python, Go and Rust projects.
+  Nearest project markers are found without recursively scanning dependency trees.
+- Node: npm/pnpm/yarn/bun declarations and lockfiles, runtime pins, Next.js/Vite/
+  Astro/Nuxt dependency identity, declared scripts and `start` fallback.
+- Python: real TOML parsing, pyproject/requirements, uv/Poetry/pip evidence, Python
+  requirements/pins, project scripts and conventional FastAPI/Django/Flask/main.py
+  launch inference. uv runs disable syncing and automatic Python downloads.
+- Go/Rust: conventional binary entrypoints and declared toolchain build/test commands.
+- Generic repositories: Procfile processes and simple Makefile targets. An explicit
+  dev target outranks a web process when both are present. No README execution.
+- Structured commands, evidence, confidence, bounded source fingerprints and
+  changed-evidence rejection after review. Intermediate symlink directories are
+  rejected during source inspection.
+- Installed runtime/manager checks, numeric version constraints, conflicting
+  lockfiles, Node dependency presence, Python environment presence, environment
+  names/states and declared/inferred local-port checks.
+- `primer commands`, `primer run NAME`, `primer why`, doctor/env JSON and plain
+  output. Unknown command names fail closed; non-interactive execution needs
+  explicit `--yes`. Libraries can run build/test without a dev declaration.
+- Refined blue review field, aligned session table, project-command browser,
+  environment view, repository-command palette, diagnostics/evidence, logs with
+  filter/scroll/pause/follow and keyboard help. Selection leads to another review.
+- macOS/Linux process groups, concurrent output capture, restart, cancellation,
+  graceful stop/escalation and descendant cleanup. One selected launch group.
+- Known-value secret redaction in script and argv previews, reports and log views;
+  hostile terminal controls are stripped. Raw logs stay in bounded session memory.
+- Checksummed macOS/Linux ARM64/AMD64 archives, versioned installer, native CI and
+  tag-triggered prereleases. Each changed file is committed individually.
 
-## Verification — 2026-10-01
+## Verification
 
-- Full ordinary Go tests passed on macOS, including an actual loopback collision,
-  process-tree termination and escalation, final stderr capture, cancellation,
-  secret redaction, changed-script rejection and inspection without execution.
-- `go test -race ./...` passed for all packages, including local checks.
-- `go vet ./...` passed.
-- TUI views were rendered and inspected at 80×24, 120×35 and 180×45, with selected
-  diagnostic, error and no-color empty states. Tests also bound output at 40×16.
-- A live PTY session exercised scan → diagnostics → quit and terminal restoration.
-- Native macOS and Linux CI passed race tests, lifecycle tests, vet and build.
-  All four macOS/Linux ARM64/AMD64 release targets also built successfully.
-- Real Next.js 16.3.8 / pnpm 11.4.0 smoke passed in an isolated temporary copy:
-  doctor returned no issues, explicit headless approval launched the server,
-  HTTP returned 200 with fixture content, and ready output was streamed. SIGINT
-  produced exit 0, the owned process group disappeared, and the port was closed.
-  Results are recorded in `next-smoke-proof.json`. The fixture's temporary dev
-  script declared its chosen test port; Primer did not choose an alternate port.
-
-The images in `visual-review/` are static renders of real View methods with
-illustrative model data, rather than screenshots of a live multi-service system.
-The wide render deliberately caps content width and leaves negative space.
+Fresh alpha.2 results are recorded in [QA-alpha.2.md](QA-alpha.2.md). Historical
+alpha.1 Next.js and published-install proofs remain available, with their original
+versions and provenance. Screenshots in `visual-review/` are real View-method
+renders with illustrative model data, not live multi-service screenshots.
 
 ## Current boundaries
 
-Inspection targets the nearest Node package; a root dev command can delegate to
-a monorepo, but there is no per-component service model or dependency graph yet.
-The runtime owns one dev launch group. There is no detached-session persistence,
-CLI status/stop, CPU/memory telemetry, readiness protocol or Git dashboard state.
-The displayed URL is expected, not verified health.
+One nearest project and one selected command group; a declared command can itself
+start children, but Primer has no per-component dependency graph. No detached
+state, CLI status/stop, CPU/memory telemetry, readiness protocol or Git dashboard.
+URLs are expected addresses, rather than assertions of healthy services.
 
-Missing dependencies block launch. No install, runtime activation, automatic
-alternate port, Compose, database, Prisma, environment-file copy, cleanup or
-snapshot action is implemented. Doctor checks that node_modules is populated;
-it does not verify dependency integrity or lockfile synchronization.
+Python inference uses a few conventional files and explicit app assignments, not
+AST/import analysis. A Procfile supports unfamiliar layouts. Poetry can use its
+own environment. Other Python projects require `.venv`; doctor checks its presence
+and the system interpreter constraint, not installed modules or the virtualenv's
+interpreter version. Numeric Python constraints are supported; unsupported syntax
+fails closed. Node dependency presence does not prove integrity or lockfile sync.
 
-Environment templates establish names, not required/optional semantics. Empty or
-absent names are advisory. Values are not evaluated as shell expressions. Known
-secrets are concealed; arbitrary unknown credentials printed by applications
-cannot be identified reliably. Nothing is uploaded or persisted.
+Makefile discovery covers simple literal targets; recipes/includes/expansions
+execute only after review. Included files are not expanded or fingerprinted.
+Procfile commands run through a shell and are shown in full before approval.
+Go/Cargo commands can fetch dependencies as part of their reviewed execution.
+Version inspection refuses repository-local tool executables.
 
-Windows launch explicitly reports unsupported process supervision. macOS has
-real Next.js execution evidence; Linux has native lifecycle test evidence, but
-its Next.js integration has not been exercised. Fatal crashes/SIGKILL recovery
-and machine-local state remain future work. This is an alpha checkpoint.
+Environment templates establish names, not required/optional semantics. Missing
+or empty entries are advisory. No shell evaluation of env files, env-file copying,
+package installation, runtime activation, alternate-port repair, Compose/database/
+Prisma action, cleanup or snapshot is implemented. `why` explains current checks;
+it does not persist failures. Arbitrary unknown credentials in output cannot be
+reliably identified. Primer uploads and persists nothing during normal use.
+
+Windows process supervision is explicitly unsupported. Fatal crashes/SIGKILL
+recovery and machine-local state remain future work. Cross-builds do not establish
+native execution on every architecture.
 
 ## Next vertical milestone
 
-Add a reviewed dependency-install action and explicit typed repair plan, then
-Compose service evidence and ordered PostgreSQL/Redis startup. Continue with
-Prisma generation/migration checks, development migration previews, and the
-broken Next.js/PostgreSQL/Redis/Prisma demo from the product specification.
-
-## Distribution checkpoint
-
-The release is explicitly marked `v0.1.0-alpha.1`. Installation places a single
-binary at `~/.local/bin/primer` without sudo or shell-profile edits. The installer
-requires a valid, unique checksum and matching embedded version before replacing
-the destination. Automated tests cover successful installation, corrupted or
-ambiguous checksums, unsupported platforms and mismatched binary versions.
-
-Native macOS and Linux CI passed with the race detector. Tag publishing waited
-for both platforms to pass. Release archives include the MIT license. Every Git
-commit changes one file, as requested.
-
-The codebase-memory MCP architecture/index requests did not return usable data
-in this session. Index the actual implementation before future graph discovery.
-
-Published distribution was verified from the pinned GitHub tag: the documented
-shell installer downloaded and validated the macOS ARM64 release, installed it
-on PATH, and bare `primer` completed review → launch → dashboard → quit against
-the real Next.js fixture. HTTP returned 200, ready logs appeared, quit returned
-0, and the owned process group and listening port disappeared. Results are in
-`distribution-proof.json`. Native macOS/Linux CI and tag publishing passed.
+Reviewed dependency installation and typed repair actions, followed by Compose
+service evidence and ordered PostgreSQL/Redis startup, then Prisma checks and the
+broken-system demo. Keep launch inference conservative and every action reviewable.
