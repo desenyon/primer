@@ -68,3 +68,48 @@ func writeExecutable(t *testing.T, root, name, text string) {
 		t.Fatal(err)
 	}
 }
+
+func TestNonNodeRuntimeVersions(t *testing.T) {
+	for _, tc := range []struct{ tool, output, want string }{{"python3", "Python 3.12.7", "3.12.7"}, {"go", "go version go1.26.4 darwin/arm64", "1.26.4"}, {"cargo", "cargo 1.85.0 (abc 2025-01-01)", "1.85.0"}, {"uv", "uv 0.8.0", "0.8.0"}, {"poetry", "Poetry (version 2.1.0)", "2.1.0"}} {
+		t.Run(tc.tool, func(t *testing.T) {
+			root := t.TempDir()
+			tools := t.TempDir()
+			writeExecutable(t, tools, tc.tool, "#!/bin/sh\necho '"+tc.output+"'\n")
+			t.Setenv("PATH", tools)
+			v, err := toolVersion(context.Background(), root, tc.tool)
+			if err != nil || v != tc.want {
+				t.Fatalf("%q %v", v, err)
+			}
+		})
+	}
+}
+
+func TestPythonPinAndMissingEnvironment(t *testing.T) {
+	root := t.TempDir()
+	tools := t.TempDir()
+	write(t, root, "requirements.txt", "")
+	write(t, root, ".python-version", "3.12")
+	write(t, root, "main.py", "print('ready')")
+	writeExecutable(t, tools, "python3", "#!/bin/sh\necho 'Python 3.12.7'\n")
+	t.Setenv("PATH", tools)
+	p, err := detect.Scan(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := Check(context.Background(), p)
+	if len(r.Tools) != 1 || !r.Tools[0].Ready {
+		t.Fatalf("partial pin rejected: %+v", r)
+	}
+	found := false
+	for _, d := range r.Diagnostics {
+		if d.ID == "dependencies" {
+			found = true
+		}
+		if d.ID == "version-python3" {
+			t.Fatal(d)
+		}
+	}
+	if !found {
+		t.Fatal("missing Python environment not diagnosed")
+	}
+}
