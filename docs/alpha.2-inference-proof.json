@@ -1,0 +1,34 @@
+{
+  "version": "primer v0.1.0-alpha.2",
+  "provenance": "local release build; conventional FastAPI inference; no Procfile override",
+  "command": {
+    "args": [
+      "uv",
+      "run",
+      "--no-sync",
+      "--no-python-downloads",
+      "python",
+      "-m",
+      "uvicorn",
+      "main:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "8000",
+      "--reload"
+    ],
+    "confidence": 0.8,
+    "evidence": [
+      {
+        "detail": "Conventional app assignment; inferred framework entrypoint",
+        "file": "main.py"
+      }
+    ],
+    "name": "dev",
+    "script": "uv run --no-sync --no-python-downloads python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload"
+  },
+  "http_status": 200,
+  "exit": 0,
+  "port_closed": true,
+  "owned_groups_gone": true
+}
