@@ -1,0 +1,1 @@
+{"name":"primer-typescript","private":true,"type":"module","scripts":{"dev":"vite --host 127.0.0.1","build":"vite build","typecheck":"tsc --noEmit"},"devDependencies":{"vite":"^7.0.0","typescript":"^5.9.0"}}
