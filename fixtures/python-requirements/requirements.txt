@@ -1,0 +1,1 @@
+# This stdlib fixture needs no third-party dependencies.
