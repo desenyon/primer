@@ -1,0 +1,17 @@
+{
+  "installation_source": "locally built macOS ARM64 release archive",
+  "version": "primer v0.1.0-alpha.1",
+  "installation": "~/.local/bin/primer",
+  "invocation": [
+    "primer"
+  ],
+  "terminal": "80x24 truecolor PTY",
+  "framework": "16.3.8",
+  "manager": "pnpm@11.4.0",
+  "launch_reviewed": true,
+  "http_status": 200,
+  "ready_log_displayed": true,
+  "quit_exit_code": 0,
+  "port_closed": true,
+  "owned_process_groups_gone": true
+}
