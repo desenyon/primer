@@ -7,3 +7,7 @@
 **/.next/
 .env
 .env.local
+
+**/.venv/
+**/__pycache__/
+**/target/
