@@ -62,3 +62,22 @@ func TestCancelledLaunchCannotStart(t *testing.T) {
 		t.Fatal("cancelled launch started")
 	}
 }
+
+func TestLaunchRejectsChangedProcfile(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "Procfile")
+	marker := filepath.Join(root, "executed")
+	os.WriteFile(file, []byte("web: echo reviewed\n"), 0600)
+	session := New(root)
+	defer session.Stop()
+	if r, err := session.Inspect(context.Background()); err != nil || r.Blocked() {
+		t.Fatalf("%+v %v", r, err)
+	}
+	os.WriteFile(file, []byte("web: touch "+marker+"\n"), 0600)
+	if err := session.Run(context.Background(), "dev"); err == nil || !strings.Contains(err.Error(), "changed after review") {
+		t.Fatalf("%v", err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatal("executed changed command")
+	}
+}
