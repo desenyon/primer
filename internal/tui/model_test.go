@@ -25,7 +25,7 @@ func demoModel() Model {
 func TestScreenDimensionsAndNoColor(t *testing.T) {
 	t.Setenv("TERM", "xterm-256color")
 	for _, size := range []struct{ w, h int }{{80, 24}, {120, 35}, {180, 45}, {40, 16}} {
-		for _, screen := range []screen{scan, plan, dashboard, diagnostics, logs} {
+		for _, screen := range []screen{scan, plan, dashboard, diagnostics, logs, commands, environment} {
 			m := demoModel()
 			m.width = size.w
 			m.height = size.h
@@ -96,5 +96,44 @@ func TestLongCommandMustBeReviewedBeforeApproval(t *testing.T) {
 	}
 	if !strings.Contains(m.View(), "q quit") {
 		t.Fatal("review footer is hidden")
+	}
+}
+
+func TestCommandBrowserRequiresSeparateReview(t *testing.T) {
+	m := demoModel()
+	m.screen = commands
+	m.snapshot.State = process.Stopped
+	m.report.Project.Commands = append(m.report.Project.Commands, project.Command{Name: "test", Script: "go test ./...", Args: []string{"go", "test", "./..."}})
+	m.selection = 1
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(Model)
+	if cmd != nil || m.screen != plan || m.selectedCommand() != "test" || !strings.Contains(m.View(), "go test") {
+		t.Fatal("command bypassed review")
+	}
+}
+
+func TestPaletteDiscoversAndReviewsProjectCommands(t *testing.T) {
+	m := demoModel()
+	m.snapshot.State = process.Stopped
+	m.screen = plan
+	m.palette = true
+	m.query = "run dev"
+	if len(m.paletteCommands()) != 1 {
+		t.Fatalf("palette: %v", m.paletteCommands())
+	}
+	updated, cmd := m.updatePalette("enter")
+	m = updated.(Model)
+	if cmd != nil || m.palette || m.screen != plan {
+		t.Fatal("palette skipped review")
+	}
+}
+
+func TestProcfileArgumentPreviewRedactsSecrets(t *testing.T) {
+	m := demoModel()
+	m.screen = plan
+	m.report.Project.Secrets = []string{"private-token"}
+	m.report.Project.Commands[0].Args = []string{"sh", "-c", "echo private-token"}
+	if strings.Contains(m.View(), "private-token") {
+		t.Fatal("secret leaked from argv")
 	}
 }
