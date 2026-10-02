@@ -1,0 +1,9 @@
+/bin/
+/dist/
+.DS_Store
+/.primer/
+/node_modules/
+**/node_modules/
+**/.next/
+.env
+.env.local
