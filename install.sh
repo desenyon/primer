@@ -3,7 +3,7 @@
 set -eu
 
 repo=desenyon/primer
-version=${PRIMER_VERSION:-v0.1.0-alpha.1}
+version=${PRIMER_VERSION:-v0.1.0-alpha.2}
 install_dir=${PRIMER_INSTALL_DIR:-"$HOME/.local/bin"}
 
 fail() { printf 'Primer: %s\n' "$*" >&2; exit 1; }
