@@ -1,5 +1,5 @@
 {
-  "installation_source": "locally built macOS ARM64 release archive",
+  "installation_source": "GitHub v0.1.0-alpha.1 release (checksummed download)",
   "version": "primer v0.1.0-alpha.1",
   "installation": "~/.local/bin/primer",
   "invocation": [
