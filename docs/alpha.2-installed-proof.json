@@ -1,0 +1,38 @@
+{
+  "version": "primer v0.1.0-alpha.2",
+  "provenance": "GitHub release installed with checksum validation",
+  "results": [
+    {
+      "fixture": "python-uv",
+      "invocation": [
+        "primer"
+      ],
+      "terminal": "80x24 truecolor PTY",
+      "environment_view": true,
+      "commands_view": true,
+      "review_approved": true,
+      "http_status": 200,
+      "ready_logs": true,
+      "logs_view": true,
+      "quit_exit": 0,
+      "owned_groups_gone": true,
+      "port_closed": true
+    },
+    {
+      "fixture": "typescript-vite",
+      "invocation": [
+        "primer"
+      ],
+      "terminal": "80x24 truecolor PTY",
+      "environment_view": true,
+      "commands_view": true,
+      "review_approved": true,
+      "http_status": 200,
+      "ready_logs": true,
+      "logs_view": true,
+      "quit_exit": 0,
+      "owned_groups_gone": true,
+      "port_closed": true
+    }
+  ]
+}
