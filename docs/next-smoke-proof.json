@@ -1,0 +1,9 @@
+{
+  "framework": "16.3.8",
+  "manager": "pnpm@11.4.0",
+  "http_status": 200,
+  "log_streamed": true,
+  "exit_code": 0,
+  "port_closed": true,
+  "process_groups_gone": true
+}
