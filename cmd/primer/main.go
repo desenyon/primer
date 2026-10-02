@@ -28,11 +28,14 @@ var version = "dev"
 
 const help = `PRIMER
 
-Understand a Node repository. Review its dev command. Bring it up.
+Understand a repository. Review its commands. Bring it up.
 
 Usage
   primer                       scan, review and enter dashboard
   primer start                 scan, review and launch
+  primer commands              list discovered project commands
+  primer run NAME              review and run a discovered command
+  primer why                   explain current diagnostics and evidence
   primer doctor                check without launching
   primer env                   inspect environment template names and states
 
@@ -41,7 +44,7 @@ Options
   --json                       machine-readable inspection
   --no-color                   plain presentation
   --no-interactive             useful plain output; no implicit execution
-  --yes                        explicitly approve the reviewed dev script
+  --yes                        explicitly approve the reviewed command
   --version                    show version
   --help                       show help
 
@@ -64,9 +67,18 @@ func run(ctx context.Context, args []string, input io.Reader, output, errOutput 
 		command = args[0]
 		args = args[1:]
 	}
-	if command != "" && command != "start" && command != "doctor" && command != "env" {
+	if command != "" && command != "start" && command != "doctor" && command != "env" && command != "commands" && command != "run" && command != "why" {
 		fmt.Fprintf(errOutput, "Unknown command: %s\nUse primer --help.\n", tui.SafeText(command))
 		return 2
+	}
+	selected := "dev"
+	if command == "run" {
+		if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+			fmt.Fprintln(errOutput, "Use primer run NAME [options].")
+			return 2
+		}
+		selected = args[0]
+		args = args[1:]
 	}
 	flags := flag.NewFlagSet("primer", flag.ContinueOnError)
 	flags.SetOutput(errOutput)
@@ -96,8 +108,8 @@ func run(ctx context.Context, args []string, input io.Reader, output, errOutput 
 		fmt.Fprintf(output, "primer %s\n", version)
 		return 0
 	}
-	if *yes && command != "start" {
-		fmt.Fprintln(errOutput, "--yes is only valid with primer start.")
+	if *yes && command != "start" && command != "run" {
+		fmt.Fprintln(errOutput, "--yes is only valid with primer start or primer run.")
 		return 2
 	}
 	if *yes && *jsonOutput {
@@ -131,7 +143,7 @@ func run(ctx context.Context, args []string, input io.Reader, output, errOutput 
 		}
 		return 0
 	}
-	if interactive && command != "doctor" && !*yes {
+	if interactive && command != "doctor" && command != "commands" && command != "why" && command != "run" && !*yes {
 		sessionCtx, cancel := context.WithCancel(ctx)
 		session := app.New(*path)
 		defer func() { cancel(); _ = session.Stop() }()
@@ -149,6 +161,30 @@ func run(ctx context.Context, args []string, input io.Reader, output, errOutput 
 		fmt.Fprintln(errOutput, tui.SafeText(err.Error()))
 		return 1
 	}
+	if command == "commands" {
+		if *jsonOutput {
+			if err := writeJSON(output, r.Project.Commands, r.Project.Redact); err != nil {
+				return 1
+			}
+		} else {
+			fmt.Fprint(output, "COMMANDS\n\n")
+			for _, c := range r.Project.Commands {
+				fmt.Fprintf(output, "%-18s %s\n", tui.SafeText(c.Name), tui.PreviewText(r.Project.Redact(c.Script)))
+			}
+			fmt.Fprintln(output, "\nRun with primer run NAME. Each command is reviewed before execution.")
+		}
+		return 0
+	}
+	if command == "run" {
+		if _, ok := r.Project.Command(selected); !ok {
+			fmt.Fprintln(errOutput, "Unknown project command:", tui.SafeText(selected))
+			return 2
+		}
+		r = r.ForCommand(selected)
+		if !*jsonOutput && !*yes {
+			printNamedCommand(output, r, selected)
+		}
+	}
 	if *jsonOutput {
 		if err := writeJSON(output, r, r.Project.Redact); err != nil {
 			return 1
@@ -156,22 +192,31 @@ func run(ctx context.Context, args []string, input io.Reader, output, errOutput 
 	} else {
 		printReport(output, r)
 	}
-	if command == "start" && *yes {
+	approved := *yes
+	if command == "run" && !approved && interactive {
+		fmt.Fprint(output, "\nRun this command? [y/N] ")
+		var answer string
+		fmt.Fscanln(input, &answer)
+		approved = answer == "y" || answer == "Y"
+	}
+	if (command == "start" || command == "run") && approved {
 		if r.Blocked() {
 			fmt.Fprintln(errOutput, "Launch blocked. Resolve the diagnostics and run again.")
 			return 1
 		}
-		if _, ok := r.Project.DevCommand(); ok {
+		if _, ok := r.Project.Command(selected); ok {
 			fmt.Fprintln(output, "\nAPPROVED LAUNCH")
-			printCommand(output, r)
+			printNamedCommand(output, r, selected)
 		}
-		if err := session.Start(ctx); err != nil {
+		if err := session.Run(ctx, selected); err != nil {
 			fmt.Fprintln(errOutput, tui.SafeText(err.Error()))
 			return 1
 		}
 		return follow(ctx, session, output)
 	}
-	if command != "doctor" && !*jsonOutput {
+	if command == "run" && !*jsonOutput {
+		fmt.Fprintf(output, "\nApprove explicitly with primer run %s --yes --no-interactive\n", tui.SafeText(selected))
+	} else if command != "doctor" && command != "why" && !*jsonOutput {
 		fmt.Fprintln(output, "\nLaunch interactively with primer, or approve explicitly:\n  primer start --yes --no-interactive")
 	}
 	if len(r.Diagnostics) > 0 {
@@ -251,10 +296,12 @@ func printReport(output io.Writer, r doctor.Report) {
 	}
 }
 
-func printCommand(output io.Writer, r doctor.Report) {
-	dev, _ := r.Project.DevCommand()
-	fmt.Fprintln(output, tui.SafeText(strings.Join(dev.Args, " ")))
-	for _, name := range []string{"predev", "dev", "postdev"} {
+func printCommand(output io.Writer, r doctor.Report) { printNamedCommand(output, r, "dev") }
+
+func printNamedCommand(output io.Writer, r doctor.Report, name string) {
+	dev, _ := r.Project.Command(name)
+	fmt.Fprintln(output, tui.PreviewText(r.Project.Redact(strings.Join(dev.Args, " "))))
+	for _, name := range []string{"pre" + name, name, "post" + name} {
 		for _, c := range r.Project.Commands {
 			if c.Name == name {
 				fmt.Fprintf(output, "  %s: %s\n", name, tui.PreviewText(r.Project.Redact(c.Script)))
