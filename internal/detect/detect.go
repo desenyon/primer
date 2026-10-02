@@ -4,7 +4,7 @@ package detect
 
 import (
 	"context"
-	"crypto/sha256"
+
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,7 +36,7 @@ func Locate(start string) (string, error) {
 		return "", fmt.Errorf("not a directory: %s", root)
 	}
 	for dir := root; ; dir = filepath.Dir(dir) {
-		for _, name := range []string{"package.json", "go.mod", "pyproject.toml", "Cargo.toml", ".git"} {
+		for _, name := range []string{"package.json", "go.mod", "pyproject.toml", "Cargo.toml", "requirements.txt", "Procfile", "Makefile", ".git"} {
 			if _, err := os.Lstat(filepath.Join(dir, name)); err == nil {
 				return dir, nil
 			}
@@ -50,6 +50,15 @@ func Locate(start string) (string, error) {
 // ReadFile rejects symlinks: cloned repositories cannot redirect inspection to
 // secrets outside the repository or special devices.
 func ReadFile(root, name string) ([]byte, error) {
+	for dir := filepath.Dir(name); dir != "."; dir = filepath.Dir(dir) {
+		info, err := os.Lstat(filepath.Join(root, dir))
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("%s is not a repository directory", dir)
+		}
+	}
 	path := filepath.Join(root, name)
 	info, err := os.Lstat(path)
 	if err != nil {
@@ -82,7 +91,7 @@ type packageJSON struct {
 	DevDependencies map[string]string `json:"devDependencies"`
 }
 
-func Scan(ctx context.Context, start string) (project.Project, error) {
+func scanNode(ctx context.Context, start string) (project.Project, error) {
 	root, err := Locate(start)
 	if err != nil {
 		return project.Project{}, err
@@ -99,7 +108,7 @@ func Scan(ctx context.Context, start string) (project.Project, error) {
 	if err != nil {
 		return p, err
 	}
-	p.Fingerprint = fmt.Sprintf("%x", sha256.Sum256(data))
+
 	var pkg packageJSON
 	if err := json.Unmarshal(data, &pkg); err != nil {
 		return p, fmt.Errorf("read package.json: %w", err)
@@ -107,6 +116,7 @@ func Scan(ctx context.Context, start string) (project.Project, error) {
 	if pkg.Name != "" {
 		p.Name = pkg.Name
 	}
+	p.DependenciesDeclared = len(pkg.Dependencies) > 0 || len(pkg.DevDependencies) > 0
 	p.Runtime = project.Runtime{Confidence: 1, Name: "Node", Required: pkg.Engines["node"], Evidence: []project.Evidence{{File: "package.json", Detail: "Node package manifest"}}}
 	if pkg.Engines["node"] != "" {
 		p.Runtime.Evidence = append(p.Runtime.Evidence, project.Evidence{File: "package.json", Detail: "engines.node"})
@@ -136,6 +146,16 @@ func Scan(ctx context.Context, start string) (project.Project, error) {
 		p.FrameworkConfidence = 1
 		p.FrameworkEvidence = []project.Evidence{{File: "package.json", Detail: "next dependency"}}
 	}
+	if p.Framework == "" {
+		for _, framework := range []struct{ dependency, name string }{{"vite", "Vite"}, {"astro", "Astro"}, {"nuxt", "Nuxt"}, {"typescript", "TypeScript"}} {
+			if pkg.Dependencies[framework.dependency] != "" || pkg.DevDependencies[framework.dependency] != "" {
+				p.Framework, p.FrameworkConfidence = framework.name, 1
+				p.FrameworkEvidence = []project.Evidence{{File: "package.json", Detail: framework.dependency + " dependency"}}
+				break
+			}
+		}
+	}
+
 	names := make([]string, 0, len(pkg.Scripts))
 	for name := range pkg.Scripts {
 		names = append(names, name)
@@ -147,7 +167,23 @@ func Scan(ctx context.Context, start string) (project.Project, error) {
 		}
 		p.Commands = append(p.Commands, project.Command{Confidence: 1, Name: name, Script: pkg.Scripts[name], Args: []string{p.Manager.Name, "run", name}, Evidence: []project.Evidence{{File: "package.json", Detail: "scripts." + name}}})
 	}
+	if _, ok := p.DevCommand(); !ok && pkg.Scripts["start"] != "" {
+		for _, c := range p.Commands {
+			if c.Name == "start" {
+				c.Name = "dev"
+				p.Commands = append(p.Commands, c)
+				break
+			}
+		}
+	}
 	if dev, ok := p.DevCommand(); ok {
+		if p.Framework == "Vite" && strings.HasPrefix(dev.Script, "vite") {
+			p.Port, p.PortConfidence, p.PortEvidence = 5173, .8, dev.Evidence
+			if match := explicitPort.FindStringSubmatch(dev.Script); len(match) > 1 {
+				p.Port, _ = strconv.Atoi(match[1])
+				p.PortConfidence = 1
+			}
+		}
 		if p.Framework == "Next.js" && nextDev.MatchString(dev.Script) {
 			p.Port = 3000
 			p.PortConfidence = 0.8
