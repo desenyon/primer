@@ -78,6 +78,6 @@ staged=
 
 printf '\nInstalled %s\n' "$install_dir/primer"
 case ":${PATH:-}:" in
-  *":$install_dir:"*) printf 'Run primer inside a Node repository.\n' ;;
-  *) printf 'Add %s to PATH, then run primer inside a Node repository.\n' "$install_dir" ;;
+  *":$install_dir:"*) printf 'Run primer inside your project repository.\n' ;;
+  *) printf 'Add %s to PATH, then run primer inside your project repository.\n' "$install_dir" ;;
 esac
