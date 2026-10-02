@@ -1,0 +1,281 @@
+{
+  "version": "primer v0.1.0-alpha.2",
+  "provenance": "local release build; isolated fixture copies; macOS ARM64",
+  "results": [
+    {
+      "fixture": "python-uv",
+      "http_status": 200,
+      "quit_exit": 0,
+      "port_closed": true,
+      "owned_groups_gone": true,
+      "command": [
+        {
+          "args": [
+            "sh",
+            "-c",
+            "uv run --no-sync --no-python-downloads python -m uvicorn main:app --host 127.0.0.1 --port 50019"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "Declared command web",
+              "file": "Procfile",
+              "line": 1
+            }
+          ],
+          "name": "dev",
+          "script": "uv run --no-sync --no-python-downloads python -m uvicorn main:app --host 127.0.0.1 --port 50019"
+        },
+        {
+          "args": [
+            "sh",
+            "-c",
+            "uv run --no-sync --no-python-downloads python -m uvicorn main:app --host 127.0.0.1 --port 50019"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "Declared command web",
+              "file": "Procfile",
+              "line": 1
+            }
+          ],
+          "name": "web",
+          "script": "uv run --no-sync --no-python-downloads python -m uvicorn main:app --host 127.0.0.1 --port 50019"
+        }
+      ]
+    },
+    {
+      "fixture": "python-requirements",
+      "http_status": 200,
+      "quit_exit": 0,
+      "port_closed": true,
+      "owned_groups_gone": true,
+      "command": [
+        {
+          "args": [
+            ".venv/bin/python",
+            "main.py"
+          ],
+          "confidence": 0.6,
+          "evidence": [
+            {
+              "detail": "Declared command dev",
+              "file": "main.py"
+            }
+          ],
+          "name": "dev",
+          "script": "python main.py"
+        }
+      ]
+    },
+    {
+      "fixture": "go-service",
+      "http_status": 200,
+      "quit_exit": 0,
+      "port_closed": true,
+      "owned_groups_gone": true,
+      "command": [
+        {
+          "args": [
+            "go",
+            "build",
+            "./..."
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "Declared command build",
+              "file": "go.mod"
+            }
+          ],
+          "name": "build",
+          "script": "go build ./..."
+        },
+        {
+          "args": [
+            "go",
+            "run",
+            "."
+          ],
+          "confidence": 0.9,
+          "evidence": [
+            {
+              "detail": "Declared command dev",
+              "file": "main.go"
+            }
+          ],
+          "name": "dev",
+          "script": "go run ."
+        },
+        {
+          "args": [
+            "go",
+            "test",
+            "./..."
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "Declared command test",
+              "file": "go.mod"
+            }
+          ],
+          "name": "test",
+          "script": "go test ./..."
+        }
+      ]
+    },
+    {
+      "fixture": "typescript-vite",
+      "http_status": 200,
+      "quit_exit": 0,
+      "port_closed": true,
+      "owned_groups_gone": true,
+      "command": [
+        {
+          "args": [
+            "npm",
+            "run",
+            "build"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "scripts.build",
+              "file": "package.json"
+            }
+          ],
+          "name": "build",
+          "script": "vite build"
+        },
+        {
+          "args": [
+            "npm",
+            "run",
+            "dev"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "scripts.dev",
+              "file": "package.json"
+            }
+          ],
+          "name": "dev",
+          "script": "vite --host 127.0.0.1 --port 50043"
+        },
+        {
+          "args": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "scripts.typecheck",
+              "file": "package.json"
+            }
+          ],
+          "name": "typecheck",
+          "script": "tsc --noEmit"
+        }
+      ]
+    },
+    {
+      "fixture": "procfile-service",
+      "http_status": 200,
+      "quit_exit": 0,
+      "port_closed": true,
+      "owned_groups_gone": true,
+      "command": [
+        {
+          "args": [
+            "make",
+            "check"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "Declared command check",
+              "file": "Makefile",
+              "line": 1
+            }
+          ],
+          "name": "check",
+          "script": "make check (recipes, includes and shell expansions execute)"
+        },
+        {
+          "args": [
+            "sh",
+            "-c",
+            "python3 -m http.server 50049 --bind 127.0.0.1"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "Declared command web",
+              "file": "Procfile",
+              "line": 1
+            }
+          ],
+          "name": "dev",
+          "script": "python3 -m http.server 50049 --bind 127.0.0.1"
+        },
+        {
+          "args": [
+            "sh",
+            "-c",
+            "python3 -m http.server 50049 --bind 127.0.0.1"
+          ],
+          "confidence": 1,
+          "evidence": [
+            {
+              "detail": "Declared command web",
+              "file": "Procfile",
+              "line": 1
+            }
+          ],
+          "name": "web",
+          "script": "python3 -m http.server 50049 --bind 127.0.0.1"
+        }
+      ]
+    },
+    {
+      "fixture": "go-service",
+      "command": "test",
+      "exit": 0
+    },
+    {
+      "fixture": "go-service",
+      "command": "build",
+      "exit": 0
+    },
+    {
+      "fixture": "rust-service",
+      "command": "build",
+      "exit": 0
+    },
+    {
+      "fixture": "rust-service",
+      "command": "dev",
+      "exit": 0
+    },
+    {
+      "fixture": "typescript-vite",
+      "command": "typecheck",
+      "exit": 0
+    },
+    {
+      "fixture": "typescript-vite",
+      "command": "build",
+      "exit": 0
+    },
+    {
+      "fixture": "procfile-service",
+      "command": "check",
+      "exit": 0
+    }
+  ]
+}
