@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560" role="img" aria-labelledby="title desc">
+  <title id="title">Primer — repository to runnable</title>
+  <desc id="desc">Electric ultramarine field, monumental paper-white Primer lettering, a sparse horizontal handoff, and halftone print texture.</desc>
+  <defs>
+    <pattern id="grain" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.2" fill="#F4F2EC"/></pattern>
+    <linearGradient id="fade"><stop stop-color="white"/><stop offset="1" stop-color="black"/></linearGradient>
+    <mask id="grain-fade"><rect x="830" y="64" width="386" height="350" fill="url(#fade)"/></mask>
+  </defs>
+  <rect width="1280" height="560" fill="#2D24E8"/>
+  <g fill="#F4F2EC" font-family="Arial, Helvetica, sans-serif">
+    <text x="64" y="78" font-size="14" letter-spacing="3">LOCAL DEVELOPMENT</text>
+    <text x="1216" y="78" text-anchor="end" font-size="14" letter-spacing="3">001 / ALPHA</text>
+    <text x="54" y="256" font-size="174" font-weight="700" letter-spacing="-8">PRIMER</text>
+    <text x="64" y="340" font-size="30" letter-spacing="-.5">Repository to runnable.</text>
+    <text x="64" y="507" font-size="13" letter-spacing="2">UNDERSTAND</text>
+    <text x="264" y="507" font-size="13" letter-spacing="2">CHECK</text>
+    <text x="437" y="507" font-size="13" letter-spacing="2">REPAIR</text>
+    <text x="625" y="507" font-size="13" letter-spacing="2">START</text>
+    <text x="801" y="507" font-size="13" letter-spacing="2">OBSERVE</text>
+  </g>
+  <rect x="830" y="120" width="386" height="280" fill="url(#grain)" mask="url(#grain-fade)" opacity=".42"/>
+  <path d="M64 423H594M638 423H1216" stroke="#F4F2EC" stroke-width="1" opacity=".65"/>
+  <circle cx="607" cy="423" r="4" fill="#F4F2EC"/>
+  <circle cx="625" cy="423" r="4" fill="none" stroke="#F4F2EC"/>
+</svg>
