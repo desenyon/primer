@@ -23,7 +23,7 @@ future work. [See the exact implementation boundary](docs/STATUS.md).
 macOS or Linux · Apple Silicon / ARM64 or Intel / AMD64 · no Go toolchain needed.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.2/install.sh | sh
+curl -fsSL https://github.com/desenyon/primer/releases/download/v0.1.0-alpha.2/install.sh | sh
 ```
 
 Then, inside your repository:
@@ -48,14 +48,14 @@ export PATH="$HOME/.local/bin:$PATH"
 Download and inspect the installer before running it:
 
 ```sh
-curl -fsSLo install-primer.sh https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.2/install.sh
+curl -fsSLo install-primer.sh https://github.com/desenyon/primer/releases/download/v0.1.0-alpha.2/install.sh
 sh install-primer.sh
 ```
 
 Or use wget:
 
 ```sh
-wget -qO install-primer.sh https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.2/install.sh
+wget -qO install-primer.sh https://github.com/desenyon/primer/releases/download/v0.1.0-alpha.2/install.sh
 sh install-primer.sh
 ```
 
