@@ -55,3 +55,24 @@ func TestJSONRedactionPreservesStructure(t *testing.T) {
 		t.Fatalf("JSON redaction: %s", output.String())
 	}
 }
+
+func TestCommandsAndRunReview(t *testing.T) {
+	var output, errs bytes.Buffer
+	if code := run(context.Background(), []string{"commands", "--path", "../../fixtures/go-service", "--json"}, strings.NewReader(""), &output, &errs, false); code != 0 {
+		t.Fatalf("%d %s", code, errs.String())
+	}
+	if !strings.Contains(output.String(), "go test") {
+		t.Fatal(output.String())
+	}
+	output.Reset()
+	errs.Reset()
+	if code := run(context.Background(), []string{"run", "not-declared", "--path", "../../fixtures/go-service"}, strings.NewReader(""), &output, &errs, false); code != 2 {
+		t.Fatalf("unknown command accepted: %d", code)
+	}
+	output.Reset()
+	errs.Reset()
+	run(context.Background(), []string{"run", "test", "--path", "../../fixtures/go-service"}, strings.NewReader(""), &output, &errs, false)
+	if strings.Contains(output.String(), "APPROVED LAUNCH") {
+		t.Fatal("unapproved execution")
+	}
+}
