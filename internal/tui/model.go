@@ -25,6 +25,8 @@ const (
 	dashboard
 	diagnostics
 	logs
+	commands
+	environment
 )
 
 type scanned struct {
@@ -53,10 +55,11 @@ type Model struct {
 	selection                        int
 	logOffset                        int
 	reviewOffset                     int
+	commandName                      string
 }
 
 func New(ctx context.Context, session *app.Session, output io.Writer, noColor bool) Model {
-	return Model{ctx: ctx, session: session, theme: theme.New(output, noColor), width: 80, height: 24, screen: scan}
+	return Model{ctx: ctx, session: session, theme: theme.New(output, noColor), width: 80, height: 24, screen: scan, commandName: "dev"}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -130,10 +133,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.query = ""
 			m.selection = 0
 		case "esc":
-			if m.screen == logs || m.screen == diagnostics {
+			if m.screen == logs || m.screen == diagnostics || m.screen == commands || m.screen == environment {
 				m.screen = m.previous
 				m.query = ""
 			}
+		case "c":
+			m.previous = m.screen
+			m.screen = commands
+			m.selection = 0
+		case "e":
+			m.previous = m.screen
+			m.screen = environment
+			m.selection = 0
 		case "d":
 			if m.screen == diagnostics {
 				return m, nil
@@ -163,6 +174,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.reviewOffset = max(0, m.reviewOffset-1)
 			} else if m.screen == diagnostics {
 				m.selection = max(0, m.selection-1)
+			} else if m.screen == commands || m.screen == environment {
+				m.selection = max(0, m.selection-1)
 			} else if m.screen == logs {
 				m.paused = true
 				m.logOffset++
@@ -172,18 +185,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.reviewOffset++
 			} else if m.screen == diagnostics {
 				m.selection = min(max(0, len(m.report.Diagnostics)-1), m.selection+1)
+			} else if m.screen == commands {
+				m.selection = min(max(0, len(m.report.Project.Commands)-1), m.selection+1)
+			} else if m.screen == environment {
+				m.selection = min(max(0, len(m.report.Project.Environment)-1), m.selection+1)
 			} else if m.screen == logs {
 				m.logOffset = max(0, m.logOffset-1)
 			}
 		case "enter":
-			if m.screen == plan && !m.busy && !m.report.Blocked() && m.err == "" && m.reviewComplete() {
+			if m.screen == commands && len(m.report.Project.Commands) > 0 && !m.busy && m.snapshot.State != process.Running {
+				m.commandName = m.report.Project.Commands[m.selection].Name
+				m.screen = plan
+				m.reviewOffset = 0
+				m.err = ""
+				return m, nil
+			}
+			if m.screen == plan && !m.busy && !m.commandReport().Blocked() && m.err == "" && m.reviewComplete() {
 				m.busy = true
-				return m, func() tea.Msg { return operation{err: m.session.Start(m.ctx)} }
+				return m, func() tea.Msg { return operation{err: m.session.Run(m.ctx, m.selectedCommand())} }
 			}
 		case "r":
 			if m.screen == dashboard && !m.busy {
 				m.busy = true
-				return m, func() tea.Msg { return operation{err: m.session.Restart(m.ctx)} }
+				return m, func() tea.Msg { return operation{err: m.session.RestartCommand(m.ctx, m.selectedCommand())} }
 			}
 		case "s":
 			if m.screen == dashboard && !m.busy {
@@ -204,9 +228,14 @@ func removeLast(s string) string {
 }
 
 func (m Model) paletteCommands() []string {
-	commands := []string{"diagnostics", "logs", "overview"}
+	commands := []string{"diagnostics", "logs", "overview", "project commands", "environment"}
 	if m.screen == dashboard || m.snapshot.Started != (time.Time{}) {
-		commands = append(commands, "restart dev", "stop dev")
+		commands = append(commands, "restart command", "stop command")
+	}
+	if m.snapshot.State != process.Running && !m.busy {
+		for _, c := range m.report.Project.Commands {
+			commands = append(commands, "run "+c.Name)
+		}
 	}
 	var found []string
 	for _, command := range commands {
@@ -230,14 +259,20 @@ func (m Model) updatePalette(key string) (tea.Model, tea.Cmd) {
 		m.query = removeLast(m.query)
 		m.selection = 0
 	case "enter":
-		commands := m.paletteCommands()
-		if len(commands) == 0 {
+		choices := m.paletteCommands()
+		if len(choices) == 0 {
 			return m, nil
 		}
-		command := commands[min(m.selection, len(commands)-1)]
+		command := choices[min(m.selection, len(choices)-1)]
 		m.palette = false
 		m.query = ""
 		switch command {
+		case "project commands":
+			m.previous = m.screen
+			m.screen = commands
+		case "environment":
+			m.previous = m.screen
+			m.screen = environment
 		case "diagnostics":
 			m.previous = m.screen
 			m.screen = diagnostics
@@ -250,16 +285,22 @@ func (m Model) updatePalette(key string) (tea.Model, tea.Cmd) {
 			} else {
 				m.screen = dashboard
 			}
-		case "restart dev":
+		case "restart command":
 			if !m.busy {
 				m.busy = true
-				return m, func() tea.Msg { return operation{err: m.session.Restart(m.ctx)} }
+				return m, func() tea.Msg { return operation{err: m.session.RestartCommand(m.ctx, m.selectedCommand())} }
 			}
-		case "stop dev":
+		case "stop command":
 			if !m.busy {
 				m.busy = true
 				return m, func() tea.Msg { return operation{err: m.session.Stop(), stop: true} }
 			}
+		}
+		if strings.HasPrefix(command, "run ") && m.snapshot.State != process.Running && !m.busy {
+			m.commandName = strings.TrimPrefix(command, "run ")
+			m.screen = plan
+			m.reviewOffset = 0
+			m.err = ""
 		}
 		m.selection = 0
 	default:
@@ -311,6 +352,10 @@ func (m Model) View() string {
 			body = m.diagnosticView(w, h)
 		case logs:
 			body = m.logsView(w, h)
+		case commands:
+			body = m.commandsView(w, h)
+		case environment:
+			body = m.environmentView(w, h)
 		}
 	}
 	// Width and height are both bounded, including hostile long repository names.
@@ -339,12 +384,25 @@ func (m Model) scanView(w int) string {
 func (m Model) planContent(w int) []string {
 	p := m.report.Project
 	title := "REPOSITORY UNDERSTOOD"
-	if m.report.Blocked() || m.err != "" {
+	if m.commandReport().Blocked() || m.err != "" {
 		title = "ATTENTION REQUIRED"
 	}
-	hero := m.theme.Hero.Width(w).Padding(1, 2).Render("PRIMER\n\n" + title + "\n" + SafeText(p.Name))
-	lines := []string{hero, "", SafeText(strings.TrimSpace(p.Framework + " · " + p.Runtime.Name + " " + p.Runtime.Required + " · " + p.Manager.Name)), ""}
-	for _, t := range m.report.Tools {
+	hero := m.theme.Hero.Width(w).Padding(1, 2).Render("PRIMER / " + SafeText(p.Name) + "\n" + title)
+	details := []string{}
+	if p.Framework != "" {
+		details = append(details, p.Framework)
+	}
+	if p.Runtime.Name != "" {
+		details = append(details, strings.TrimSpace(p.Runtime.Name+" "+p.Runtime.Required))
+	}
+	if p.Manager.Name != "" && !strings.EqualFold(p.Manager.Name, p.Runtime.Name) {
+		details = append(details, p.Manager.Name)
+	}
+	if len(details) == 0 {
+		details = append(details, "Declared project commands")
+	}
+	lines := []string{hero, "", SafeText(strings.Join(details, " · ")), ""}
+	for _, t := range m.commandReport().Tools {
 		state := "ready"
 		if !t.Ready {
 			state = "attention"
@@ -352,9 +410,9 @@ func (m Model) planContent(w int) []string {
 		lines = append(lines, fmt.Sprintf("%s %-8s %-16s %s", m.theme.Status(state), SafeText(t.Name), SafeText(t.Version), state))
 	}
 	lines = append(lines, "", m.theme.Heading.Render("LAUNCH / REVIEW"))
-	if dev, ok := p.DevCommand(); ok {
-		lines = append(lines, "→ "+SafeText(strings.Join(dev.Args, " ")))
-		for _, name := range []string{"predev", "dev", "postdev"} {
+	if dev, ok := p.Command(m.selectedCommand()); ok {
+		lines = append(lines, "→ "+PreviewText(p.Redact(strings.Join(dev.Args, " "))))
+		for _, name := range []string{"pre" + m.selectedCommand(), m.selectedCommand(), "post" + m.selectedCommand()} {
 			for _, command := range p.Commands {
 				if command.Name == name {
 					lines = append(lines, "  "+name+": "+PreviewText(p.Redact(command.Script)))
@@ -363,8 +421,8 @@ func (m Model) planContent(w int) []string {
 		}
 		lines = append(lines, m.theme.Muted.Render("Repository scripts execute with your local permissions."))
 	}
-	if len(m.report.Diagnostics) > 0 {
-		lines = append(lines, "", fmt.Sprintf("%s %d diagnostics · d to inspect", m.theme.Status("attention"), len(m.report.Diagnostics)))
+	if len(m.commandReport().Diagnostics) > 0 {
+		lines = append(lines, "", fmt.Sprintf("%s %d diagnostics · d to inspect", m.theme.Status("attention"), len(m.commandReport().Diagnostics)))
 	}
 	if m.err != "" {
 		lines = append(lines, "", SafeText(m.err))
@@ -387,11 +445,11 @@ func (m Model) planView(w int) string {
 	available := max(1, m.height-6)
 	start := min(m.reviewOffset, max(0, len(lines)-available))
 	end := min(len(lines), start+available)
-	foot := "enter approve and launch    d diagnostics    q quit"
+	foot := "enter approve and launch    c commands    d issues    q quit"
 	if !m.reviewComplete() {
 		foot = "↓ review remaining lines    d diagnostics    q quit"
 	}
-	if m.report.Blocked() || m.err != "" {
+	if m.commandReport().Blocked() || m.err != "" {
 		foot = "↑↓ scroll    d diagnostics    q quit"
 	}
 	if m.busy {
@@ -403,6 +461,9 @@ func (m Model) planView(w int) string {
 func (m Model) dashboardView(w, h int) string {
 	s := m.snapshot
 	state := string(s.State)
+	if s.State == process.Exited && s.ExitCode == 0 {
+		state = "completed"
+	}
 	if state == "" {
 		state = "stopped"
 	}
@@ -410,8 +471,8 @@ func (m Model) dashboardView(w, h int) string {
 	if !s.Started.IsZero() && s.State == process.Running {
 		uptime = time.Since(s.Started).Truncate(time.Second).String()
 	}
-	lines := []string{m.header(w), "", m.theme.Heading.Render("SERVICES"), fmt.Sprintf("%s %-10s %-12s PID %-7d %s", m.theme.Status(state), "dev", state, s.PID, uptime)}
-	if m.report.Project.Port > 0 {
+	lines := []string{m.header(w), "", m.theme.Heading.Render(fmt.Sprintf("%-21s %-12s %-12s %s", "PROCESS", "STATE", "PID", "UPTIME")), fmt.Sprintf("%s %-19s %-12s %-12d %s", m.theme.Status(state), SafeText(m.selectedCommand()), state, s.PID, uptime)}
+	if m.selectedCommand() == "dev" && m.report.Project.Port > 0 {
 		lines = append(lines, m.theme.Muted.Render(fmt.Sprintf("  expected URL  http://localhost:%d", m.report.Project.Port)))
 	}
 	if s.ExitCode >= 0 {
@@ -420,8 +481,8 @@ func (m Model) dashboardView(w, h int) string {
 	if m.err != "" {
 		lines = append(lines, SafeText(m.err))
 	}
-	lines = append(lines, "", m.theme.Heading.Render("ACTIVITY"))
-	count := max(0, h-len(lines)-3)
+	lines = append(lines, "", m.theme.Muted.Render(fmt.Sprintf("%d commands   %d environment entries   %d diagnostics", len(m.report.Project.Commands), len(m.report.Project.Environment), len(m.report.Diagnostics))), "", m.theme.Heading.Render("ACTIVITY"))
+	count := max(0, h-len(lines)-4)
 	if len(s.Logs) == 0 {
 		lines = append(lines, m.theme.Muted.Render("No process output yet."))
 	} else {
@@ -429,7 +490,7 @@ func (m Model) dashboardView(w, h int) string {
 			lines = append(lines, renderLog(log, w))
 		}
 	}
-	lines = append(lines, "", m.theme.Divider(w), m.theme.Muted.Render("l logs    r restart    s stop    : command    ? help    q quit"))
+	lines = append(lines, "", m.theme.Divider(w), m.theme.Muted.Render("l logs   c commands   e env   r restart   s stop   : palette   q quit"))
 	return strings.Join(lines, "\n")
 }
 
@@ -495,7 +556,7 @@ func (m Model) logsView(w, h int) string {
 			entries = append(entries, entry)
 		}
 	}
-	count := max(0, h-len(lines)-2)
+	count := max(0, h-len(lines)-3)
 	offset := min(m.logOffset, max(0, len(entries)-count))
 	entries = entries[:len(entries)-offset]
 	if len(entries) == 0 {
@@ -510,21 +571,71 @@ func (m Model) logsView(w, h int) string {
 }
 
 func (m Model) helpView(w int) string {
-	return m.header(w) + "\n\nKEYBOARD\n\nenter     approve reviewed launch\nl         logs\nd         diagnostics and evidence\nr         restart dev\ns         stop dev\n/         filter logs\nspace     pause / follow logs\n:         command palette\n↑↓ / j k  navigate\nesc       back\nq         quit and stop process group\n\n? / esc   close help"
+	return m.header(w) + "\n\nKEYBOARD\n\nenter     approve reviewed launch\nl         logs\nd         diagnostics and evidence\nc         discovered project commands\ne         environment names and states\nr         restart dev\ns         stop dev\n/         filter logs\nspace     pause / follow logs\n:         command palette\n↑↓ / j k  navigate\nesc       back\nq         quit and stop process group\n\n? / esc   close help"
 }
 
 func (m Model) paletteView(w int) string {
 	lines := []string{m.header(w), "", m.theme.Heading.Render("COMMAND"), "", "> " + SafeText(m.query), ""}
-	commands := m.paletteCommands()
-	for i, command := range commands {
+	choices := m.paletteCommands()
+	count := max(1, m.height-13)
+	start := max(0, m.selection-count+1)
+	for i := start; i < min(len(choices), start+count); i++ {
+		command := choices[i]
 		if i == m.selection {
-			lines = append(lines, m.theme.Focus.Render(" → "+command+" "))
+			lines = append(lines, m.theme.Focus.Render(" → "+SafeText(command)+" "))
 		} else {
-			lines = append(lines, "   "+command)
+			lines = append(lines, "   "+SafeText(command))
 		}
 	}
-	if len(commands) == 0 {
+	if len(choices) == 0 {
 		lines = append(lines, "No matching command.")
 	}
 	return strings.Join(append(lines, "", "↑↓ select    enter run    esc cancel"), "\n")
+}
+
+func (m Model) selectedCommand() string {
+	if m.commandName == "" {
+		return "dev"
+	}
+	return m.commandName
+}
+func (m Model) commandReport() doctor.Report { return m.report.ForCommand(m.selectedCommand()) }
+func (m Model) commandsView(w, h int) string {
+	lines := []string{m.header(w), "", m.theme.Heading.Render("PROJECT COMMANDS"), ""}
+	entries := m.report.Project.Commands
+	count := max(1, h-9)
+	start := max(0, m.selection-count+1)
+	for i := start; i < min(len(entries), start+count); i++ {
+		c := entries[i]
+		row := fmt.Sprintf("  %-18s %s", SafeText(c.Name), PreviewText(m.report.Project.Redact(c.Script)))
+		row = ansi.Truncate(row, w, "")
+		if i == m.selection {
+			row = m.theme.Focus.Width(w).Render("→" + strings.TrimPrefix(row, " "))
+		}
+		lines = append(lines, row)
+	}
+	if len(entries) == 0 {
+		lines = append(lines, "No declared commands found.")
+	}
+	if m.snapshot.State == process.Running {
+		lines = append(lines, "", "Stop the active process before choosing another command.")
+	} else {
+		lines = append(lines, "", "Commands are reviewed before execution.")
+	}
+	return strings.Join(append(lines, "", m.theme.Muted.Render("↑↓ select   enter review   esc back   q quit")), "\n")
+}
+func (m Model) environmentView(w, h int) string {
+	lines := []string{m.header(w), "", m.theme.Heading.Render("ENVIRONMENT / VALUES HIDDEN"), ""}
+	entries := m.report.Project.Environment
+	count := max(1, h-9)
+	start := max(0, m.selection-count+1)
+	for i := start; i < min(len(entries), start+count); i++ {
+		e := entries[i]
+		row := fmt.Sprintf("%s %-32s %s", m.theme.Status(e.State), SafeText(e.Name), e.State)
+		lines = append(lines, row)
+	}
+	if len(entries) == 0 {
+		lines = append(lines, "No environment template entries found.")
+	}
+	return strings.Join(append(lines, "", "Templates describe names; optionality is not inferred.", "", m.theme.Muted.Render("↑↓ scroll   esc back   q quit")), "\n")
 }
