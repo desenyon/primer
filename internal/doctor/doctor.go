@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,10 +30,12 @@ type Report struct {
 
 func Check(ctx context.Context, p project.Project) Report {
 	r := Report{Project: p, Tools: []Tool{}, Diagnostics: append([]project.Diagnostic{}, p.Diagnostics...)}
-	if p.Runtime.Name == "" {
-		return r
+	runtimeTool := map[string]string{"Node": "node", "Python": "python3", "Go": "go", "Rust": "rustc"}[p.Runtime.Name]
+	tools := []string{runtimeTool}
+	if p.Manager.Name != "pip" && p.Manager.Name != runtimeTool {
+		tools = append(tools, p.Manager.Name)
 	}
-	for _, name := range []string{"node", p.Manager.Name} {
+	for _, name := range tools {
 		if name == "" {
 			continue
 		}
@@ -43,13 +46,19 @@ func Check(ctx context.Context, p project.Project) Report {
 		} else {
 			requirements := []string{p.Manager.Version}
 			evidence := p.Manager.Evidence
-			if name == "node" {
+			if name == runtimeTool {
 				requirements = append([]string{p.Runtime.Required}, p.Runtime.Pins...)
 				evidence = p.Runtime.Evidence
 			}
 			for _, requirement := range requirements {
 				if requirement == "" {
 					continue
+				}
+				if p.Runtime.Name == "Python" {
+					requirement = strings.ReplaceAll(requirement, "==", "=")
+				}
+				if regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?$`).MatchString(requirement) {
+					requirement += ".x"
 				}
 				constraint, parseErr := semver.NewConstraint(requirement)
 				actual, versionErr := semver.NewVersion(version)
@@ -67,9 +76,16 @@ func Check(ctx context.Context, p project.Project) Report {
 		}
 		r.Tools = append(r.Tools, t)
 	}
-	entries, err := os.ReadDir(filepath.Join(p.Root, "node_modules"))
-	if err != nil || len(entries) == 0 {
-		r.Diagnostics = append(r.Diagnostics, project.Diagnostic{ID: "dependencies", Summary: "Node dependencies are missing", Expected: "A populated node_modules directory", Repair: "Review and run the package install command. Install scripts execute repository and dependency code.", Blocking: true, Evidence: []project.Evidence{{File: "package.json", Detail: "Node package dependencies"}}})
+	if p.Runtime.Name == "Node" && p.DependenciesDeclared {
+		entries, err := os.ReadDir(filepath.Join(p.Root, "node_modules"))
+		if err != nil || len(entries) == 0 {
+			r.Diagnostics = append(r.Diagnostics, project.Diagnostic{ID: "dependencies", Summary: "Node dependencies are missing", Expected: "A populated node_modules directory", Repair: "Review and run the package install command. Install scripts execute repository and dependency code.", Blocking: true, Evidence: p.Runtime.Evidence})
+		}
+	}
+	if p.Runtime.Name == "Python" && (p.Manager.Name == "uv" || p.Manager.Name == "poetry" || fileExists(p.Root, "requirements.txt") || fileExists(p.Root, "pyproject.toml")) {
+		if !fileExists(p.Root, ".venv/bin/python") && p.Manager.Name != "poetry" {
+			r.Diagnostics = append(r.Diagnostics, project.Diagnostic{ID: "dependencies", Summary: "Python environment is missing", Expected: "A project-local .venv", Repair: "Review uv sync, or python3 -m venv .venv followed by .venv/bin/python -m pip install -r requirements.txt (or -e . for pyproject projects). Installation executes dependency code.", Blocking: true, Evidence: p.Runtime.Evidence})
+		}
 	}
 	if p.Port > 0 {
 		listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p.Port))
@@ -110,7 +126,11 @@ func toolVersion(ctx context.Context, root, name string) (string, error) {
 	}
 	checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(checkCtx, path, "--version")
+	args := []string{"--version"}
+	if name == "go" {
+		args = []string{"version"}
+	}
+	cmd := exec.CommandContext(checkCtx, path, args...)
 	cmd.WaitDelay = 250 * time.Millisecond
 	// Package manager configuration in the repository is untrusted.
 	cmd.Dir = os.TempDir()
@@ -122,9 +142,46 @@ func toolVersion(ctx context.Context, root, name string) (string, error) {
 	if len(version) > 128 || strings.ContainsAny(version, "\n\r\x1b") {
 		return "", fmt.Errorf("%s returned an invalid version", name)
 	}
+	switch name {
+	case "python3":
+		version = strings.TrimPrefix(version, "Python ")
+	case "go":
+		fields := strings.Fields(version)
+		if len(fields) >= 3 {
+			version = strings.TrimPrefix(fields[2], "go")
+		}
+	case "rustc", "cargo", "uv", "poetry":
+		fields := strings.Fields(version)
+		if len(fields) >= 2 {
+			version = fields[1]
+		}
+		if name == "poetry" && len(fields) >= 3 {
+			version = strings.TrimSuffix(fields[2], ")")
+		}
+	}
 	version = strings.TrimPrefix(version, "v")
 	if _, err := semver.NewVersion(version); err != nil {
 		return "", fmt.Errorf("%s returned an unrecognized version", name)
 	}
 	return version, nil
+}
+
+func fileExists(root, name string) bool {
+	_, err := os.Stat(filepath.Join(root, name))
+	return err == nil
+}
+
+// A library need not declare a dev process to run its declared test/build commands.
+func (r Report) ForCommand(name string) Report {
+	if name == "dev" {
+		return r
+	}
+	filtered := make([]project.Diagnostic, 0, len(r.Diagnostics))
+	for _, d := range r.Diagnostics {
+		if d.ID != "missing-dev-command" && d.ID != "port" {
+			filtered = append(filtered, d)
+		}
+	}
+	r.Diagnostics = filtered
+	return r
 }
