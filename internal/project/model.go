@@ -54,20 +54,21 @@ type Diagnostic struct {
 }
 
 type Project struct {
-	Root                string                `json:"root"`
-	Name                string                `json:"name"`
-	Framework           string                `json:"framework,omitempty"`
-	FrameworkEvidence   []Evidence            `json:"framework_evidence,omitempty"`
-	FrameworkConfidence float64               `json:"framework_confidence,omitempty"`
-	Runtime             Runtime               `json:"runtime"`
-	Manager             Manager               `json:"package_manager"`
-	Commands            []Command             `json:"commands"`
-	Environment         []EnvironmentVariable `json:"environment"`
-	Port                int                   `json:"port,omitempty"`
-	PortConfidence      float64               `json:"port_confidence,omitempty"`
-	PortEvidence        []Evidence            `json:"port_evidence,omitempty"`
-	Diagnostics         []Diagnostic          `json:"diagnostics"`
-	Fingerprint         string                `json:"fingerprint"`
+	DependenciesDeclared bool                  `json:"dependencies_declared"`
+	Root                 string                `json:"root"`
+	Name                 string                `json:"name"`
+	Framework            string                `json:"framework,omitempty"`
+	FrameworkEvidence    []Evidence            `json:"framework_evidence,omitempty"`
+	FrameworkConfidence  float64               `json:"framework_confidence,omitempty"`
+	Runtime              Runtime               `json:"runtime"`
+	Manager              Manager               `json:"package_manager"`
+	Commands             []Command             `json:"commands"`
+	Environment          []EnvironmentVariable `json:"environment"`
+	Port                 int                   `json:"port,omitempty"`
+	PortConfidence       float64               `json:"port_confidence,omitempty"`
+	PortEvidence         []Evidence            `json:"port_evidence,omitempty"`
+	Diagnostics          []Diagnostic          `json:"diagnostics"`
+	Fingerprint          string                `json:"fingerprint"`
 	// Secrets only live in memory and never enter machine-readable output.
 	Secrets []string `json:"-"`
 }
@@ -100,4 +101,13 @@ func (p Project) Redact(text string) string {
 		}
 	}
 	return text
+}
+
+func (p Project) Command(name string) (Command, bool) {
+	for _, c := range p.Commands {
+		if c.Name == name {
+			return c, true
+		}
+	}
+	return Command{}, false
 }
