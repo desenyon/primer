@@ -1,0 +1,8 @@
+{
+  "name": "primer-next-demo",
+  "private": true,
+  "packageManager": "pnpm@11.4.0",
+  "engines": { "node": ">=22" },
+  "scripts": { "dev": "next dev", "build": "next build" },
+  "dependencies": { "next": "16.3.8", "react": "19.3.0", "react-dom": "19.3.0" }
+}
