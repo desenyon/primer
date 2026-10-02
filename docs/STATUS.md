@@ -36,7 +36,8 @@ The supplied product direction is preserved as operating constraints in
 - TUI views were rendered and inspected at 80×24, 120×35 and 180×45, with selected
   diagnostic, error and no-color empty states. Tests also bound output at 40×16.
 - A live PTY session exercised scan → diagnostics → quit and terminal restoration.
-- Linux/amd64 cross-build passed; native Linux runtime behavior remains untested.
+- Native macOS and Linux CI passed race tests, lifecycle tests, vet and build.
+  All four macOS/Linux ARM64/AMD64 release targets also built successfully.
 - Real Next.js 16.3.8 / pnpm 11.4.0 smoke passed in an isolated temporary copy:
   doctor returned no issues, explicit headless approval launched the server,
   HTTP returned 200 with fixture content, and ready output was streamed. SIGINT
@@ -67,9 +68,9 @@ secrets are concealed; arbitrary unknown credentials printed by applications
 cannot be identified reliably. Nothing is uploaded or persisted.
 
 Windows launch explicitly reports unsupported process supervision. macOS has
-native execution evidence; Linux requires native runtime validation in addition
-to compilation. Fatal crashes/SIGKILL recovery and machine-local state remain
-future work. No release-readiness claim is made.
+real Next.js execution evidence; Linux has native lifecycle test evidence, but
+its Next.js integration has not been exercised. Fatal crashes/SIGKILL recovery
+and machine-local state remain future work. This is an alpha checkpoint.
 
 ## Next vertical milestone
 
@@ -86,16 +87,16 @@ requires a valid, unique checksum and matching embedded version before replacing
 the destination. Automated tests cover successful installation, corrupted or
 ambiguous checksums, unsupported platforms and mismatched binary versions.
 
-The prepared CI workflow tests native macOS and Linux with the race detector.
-Tag publishing waits for both platforms to pass. The remote workflow has not run
-yet because public publication awaits explicit approval. Release archives include the MIT license. Git history is
-created with one file per commit, as requested.
+Native macOS and Linux CI passed with the race detector. Tag publishing waited
+for both platforms to pass. Release archives include the MIT license. Every Git
+commit changes one file, as requested.
 
 The codebase-memory MCP architecture/index requests did not return usable data
 in this session. Index the actual implementation before future graph discovery.
 
-The locally built macOS ARM64 release was installed on PATH. Bare `primer`
-completed review → launch → dashboard → quit against the real Next.js fixture.
-HTTP returned 200, ready logs appeared, quit returned 0, and the owned process
-group and listening port disappeared. Results are in `distribution-proof.json`.
-The GitHub download/install path remains unverified until publication.
+Published distribution was verified from the pinned GitHub tag: the documented
+shell installer downloaded and validated the macOS ARM64 release, installed it
+on PATH, and bare `primer` completed review → launch → dashboard → quit against
+the real Next.js fixture. HTTP returned 200, ready logs appeared, quit returned
+0, and the owned process group and listening port disappeared. Results are in
+`distribution-proof.json`. Native macOS/Linux CI and tag publishing passed.
