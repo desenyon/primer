@@ -52,3 +52,11 @@ The conventional FastAPI inference path also passed HTTP 200, reload-process cle
 and exit 0 without a Procfile override. [Inference proof](alpha.2-inference-proof.json).
 The existing real Next.js fixture passed the same launch/shutdown regression checks.
 [Next.js regression proof](alpha.2-next-proof.json).
+
+## Published distribution
+
+Native [main CI](https://github.com/desenyon/primer/actions/runs/36971236862) and [tag CI](https://github.com/desenyon/primer/actions/runs/36971341561) passed.
+[Release](https://github.com/desenyon/primer/releases/tag/v0.1.0-alpha.2) contains four platform archives, checksums and installer.
+The published installer validated the checksum and embedded alpha.2 version,
+replaced the installed binary on PATH, and bare `primer` passed the complete
+Python and Vite/TypeScript PTY paths. [Installed proof](alpha.2-installed-proof.json).
