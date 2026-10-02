@@ -176,7 +176,9 @@ primer
 
 The isolated smoke test served HTTP 200, streamed ready output, and confirmed
 that shutdown removed the process group and closed its port.
-[Recorded result](docs/next-smoke-proof.json).
+[Recorded result](docs/next-smoke-proof.json). The locally built release also
+passed the bare-`primer` interactive path after installation on PATH.
+[Installed release proof](docs/distribution-proof.json).
 
 ## Next
 
