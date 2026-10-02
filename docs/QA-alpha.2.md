@@ -60,3 +60,7 @@ Native [main CI](https://github.com/desenyon/primer/actions/runs/36971236862) an
 The published installer validated the checksum and embedded alpha.2 version,
 replaced the installed binary on PATH, and bare `primer` passed the complete
 Python and Vite/TypeScript PTY paths. [Installed proof](alpha.2-installed-proof.json).
+
+The release installer received a copy-only correction after publication: its
+success message now refers to a project repository. The README downloads this
+release asset; its checksum was refreshed without changing the tagged binaries.
