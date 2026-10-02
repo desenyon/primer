@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/desenyon/primer/actions/workflows/ci.yml"><img src="https://github.com/desenyon/primer/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build and tests"></a>
-  <a href="https://github.com/desenyon/primer/releases"><img src="https://img.shields.io/badge/release-0.1.0--alpha.1-2D24E8" alt="Release 0.1.0-alpha.1"></a>
+  <a href="https://github.com/desenyon/primer/releases"><img src="https://img.shields.io/badge/release-0.1.0--alpha.2-2D24E8" alt="Release 0.1.0-alpha.2"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-111111" alt="MIT license"></a>
 </p>
 
@@ -14,18 +14,19 @@ Primer inspects a local repository, checks its requirements, previews the comman
 that starts it, and stays open as a process and log dashboard. Every conclusion
 has evidence. The core uses deterministic analysis and works without an LLM.
 
-**This alpha supports Node and Next.js.** Python, Compose, databases and repair
-actions are coming next. [See the exact implementation boundary](docs/STATUS.md).
+**This alpha supports Node/TypeScript, Python, Go and Rust, plus declared
+Procfile and Makefile commands.** Compose, databases and repair actions remain
+future work. [See the exact implementation boundary](docs/STATUS.md).
 
 ## Install
 
 macOS or Linux · Apple Silicon / ARM64 or Intel / AMD64 · no Go toolchain needed.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.1/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.2/install.sh | sh
 ```
 
-Then, inside your Node repository:
+Then, inside your repository:
 
 ```sh
 primer
@@ -47,14 +48,14 @@ export PATH="$HOME/.local/bin:$PATH"
 Download and inspect the installer before running it:
 
 ```sh
-curl -fsSLo install-primer.sh https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.1/install.sh
+curl -fsSLo install-primer.sh https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.2/install.sh
 sh install-primer.sh
 ```
 
 Or use wget:
 
 ```sh
-wget -qO install-primer.sh https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.1/install.sh
+wget -qO install-primer.sh https://raw.githubusercontent.com/desenyon/primer/v0.1.0-alpha.2/install.sh
 sh install-primer.sh
 ```
 
@@ -79,13 +80,39 @@ install -m 755 bin/primer "$HOME/.local/bin/primer"
 
 </details>
 
+## Supported launch patterns
+
+| Repository | Default launch | Preparation |
+| --- | --- | --- |
+| Node / TypeScript | `dev` script, or `start` when dev is absent | Install with the declared npm/pnpm/yarn/bun manager |
+| Vite / Next.js | Declared script; common default or explicit port | Existing dependencies |
+| Python + uv | Declared project script or conventional framework entrypoint, through `uv run --no-sync --no-python-downloads` | `uv sync` first; Primer does not install implicitly |
+| Python + Poetry | Declared project script or framework entrypoint, through `poetry run` | `poetry install` first |
+| Python + pip | `.venv/bin/python`; `main.py`, Django `manage.py`, FastAPI/Flask `app` | Create `.venv` and install requirements or the project |
+| Go | `go run .` or `go run ./cmd/server` when a conventional main exists | Go toolchain; build/test commands are also discovered |
+| Rust | `cargo run` when `src/main.rs` exists | Rust/Cargo; build/test commands are also discovered |
+| Other repositories | Explicit `dev`/`web` Procfile process or `dev` Makefile target | Tools used by that declaration |
+
+`primer commands` lists declared scripts, Procfile processes and simple Makefile
+targets. `primer run NAME` accepts only discovered names, previews the command,
+and asks before execution. Non-interactive runs require `--yes`. No README
+command is executed. Makefiles may execute includes and shell expansions; the
+preview identifies that risk rather than claiming to expand every recipe.
+
+Python entrypoint inference is deliberately conservative: known files containing
+an `app = FastAPI(` / `app = Flask(` assignment, Django's `manage.py`, or `main.py`.
+Declare a Procfile when the project uses a different layout. No manifest is
+created automatically. One command group runs at a time, including a command
+that itself starts multiple child processes.
+
 ## From scan to session
 
-**Inspect.** Read package manifests, lockfile names, Node pins and environment
-templates. Check tools, dependencies and expected Next.js ports. No repository
+**Inspect.** Read package manifests, Python/Go/Cargo declarations, lockfile names, runtime
+pins, Procfiles, Makefiles and environment templates. Check tools, local dependency
+environments and expected Next.js/Vite/framework ports. No repository
 script runs during detection.
 
-**Review.** See the actual package-manager command and dev/predev/postdev scripts.
+**Review.** See the actual command and associated lifecycle scripts.
 Long previews wrap and scroll; approval waits until their end has been shown.
 Conflicting declarations or missing prerequisites block launch.
 
@@ -107,6 +134,10 @@ model data. [Inspect the wider dashboard](docs/visual-review/dashboard-120x35.pn
 | Command | Behavior |
 | --- | --- |
 | `primer` | Scan the current repository, review and enter the dashboard |
+| `primer commands` | List discovered commands; `--json` provides structured evidence |
+| `primer run test` | Review and run a declared test command |
+| `primer run build --yes --no-interactive` | Explicitly approve a discovered build command |
+| `primer why` | Explain current deterministic diagnostics and their evidence |
 | `primer doctor` | Run available checks without launching |
 | `primer doctor --json` | Report the model and diagnostics as JSON |
 | `primer env` | Show environment-template names and configured/missing/empty states |
@@ -126,6 +157,7 @@ execute repository code. `--json` is inspection-only. `NO_COLOR`, `TERM=dumb`,
 | --- | --- |
 | `enter` | Approve a fully reviewed launch |
 | `l` / `d` | Logs / diagnostics and evidence |
+| `c` / `e` | Project command browser / environment states |
 | `r` / `s` | Restart / stop dev |
 | `:` or `ctrl+k` | Command palette |
 | `/` | Filter logs |
@@ -137,11 +169,17 @@ execute repository code. `--json` is inspection-only. `NO_COLOR`, `TERM=dumb`,
 
 | Area | Current behavior |
 | --- | --- |
-| Detection | Node, Next.js, npm/pnpm/yarn/bun, runtime pins, root scripts, env templates, common Next.js ports |
+| Detection | Node/TypeScript, Next.js/Vite/Astro/Nuxt dependencies; Python, FastAPI/Django/Flask, uv/Poetry/pip; Go, Rust; Procfile/Makefile; env templates |
 | Diagnostics | Runtime/manager mismatch or absence, conflicting lockfiles, missing dependencies, template variables, unavailable ports |
-| Runtime | One dev launch group, stdout/stderr, restart, graceful stop with escalation, descendant cleanup |
-| Interface | Scan, command review, dashboard, diagnostics, logs, help and session palette |
+| Runtime | One selected command launch group, stdout/stderr, restart, graceful stop with escalation, descendant cleanup |
+| Interface | Scan, command review, dashboard, diagnostics, logs, environment, command browser, help and session palette |
 | Distribution | macOS/Linux ARM64/AMD64 binaries, shell installer, SHA256 checksums |
+
+Python checks `.venv` presence (Poetry can use its own environment) and the system
+interpreter requirement; it does not import modules or verify installed packages
+or the interpreter inside a virtualenv. Unsupported Python version syntax fails
+closed. Framework inference can still require a declared Procfile for unusual
+entrypoints. `primer why` reports current checks; it does not retain past failures.
 
 The Node dependency check establishes that `node_modules` is populated; it does
 not prove lockfile synchronization or package integrity. “Running” refers to the
@@ -174,11 +212,9 @@ cd fixtures/next-basic
 primer
 ```
 
-The isolated smoke test served HTTP 200, streamed ready output, and confirmed
-that shutdown removed the process group and closed its port.
-[Recorded result](docs/next-smoke-proof.json). The published binary also passed
-the complete bare-`primer` interactive path after installation from GitHub.
-[Installed release proof](docs/distribution-proof.json).
+See [the QA record](docs/QA-alpha.2.md) for real launch and shutdown results,
+UI review sizes, and the remaining limits. The original Next.js smoke and alpha.1
+published-install proofs remain available as historical evidence.
 
 ## Next
 
